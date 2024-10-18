@@ -1,0 +1,100 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Function to parse binary input string into a list of integers
+def parse_binary_input(input_string):
+    return [int(bit) for bit in input_string.split()]
+
+# Data input (spaced binary input)
+input_string = "1 1 0 0 1 0 1 0 0 0 0 1 1 1 1 1"
+data = parse_binary_input(input_string)
+
+# Parameters
+bit_duration = 1  # Duration of each bit in seconds
+num_bits = len(data)
+total_duration = num_bits * bit_duration
+
+# Time vector: sampled at 1000 points per bit (for smoother waveforms)
+t = np.linspace(0, total_duration, num_bits * 1000)
+
+# FSK parameters (frequencies for '1' and '0')
+f_high = 4  # Frequency for '1'
+f_low = 2   # Frequency for '0'
+
+# Manchester encoding function (SE=1 for '1', DE=1 for '0')
+def manchester_encoding(data):
+    signal = []
+    for bit in data:
+        if bit == 1:
+            # SE=1 for '1' bit: high to low transition
+            signal.extend([-1] * 500 + [1] * 500)  # First half high, second half low
+        else:
+            # DE=1 for '0' bit: low to high transition
+            signal.extend([1] * 500 + [-1] * 500)  # First half low, second half high
+    return signal
+
+# FSK modulation function
+def fsk_modulation(data, f_high, f_low, bit_duration):
+    modulated_signal = []
+    t_bit = np.linspace(0, bit_duration, 1000, endpoint=False)  # Time vector for each bit (1000 samples per bit)
+    for bit in data:
+        if bit == 1:
+            # Apply high frequency for '1'
+            modulated_signal.extend(np.sin(2 * np.pi * f_low * t_bit))
+            modulated_signal.extend(np.sin(2 * np.pi * f_high * t_bit))
+        else:
+            # Apply low frequency for '0'
+            modulated_signal.extend(np.sin(2 * np.pi * f_high * t_bit))
+            modulated_signal.extend(np.sin(2 * np.pi * f_low * t_bit))
+    return modulated_signal
+
+# Raw bit display function (step function for raw binary data)
+def raw_bit_display(data, bit_duration):
+    signal = []
+    for bit in data:
+        signal.extend([bit] * 1000)  # Each bit held constant for 1000 samples
+    return signal
+
+# Generate Manchester signal
+manchester_signal = manchester_encoding(data)
+
+# Apply FSK modulation on the data
+fsk_signal = fsk_modulation(data, f_high, f_low, bit_duration)
+
+# Generate raw bit signal
+raw_bit_signal = raw_bit_display(data, bit_duration)
+
+# Create time vectors that match the length of the signals
+t_fsk = np.linspace(0, total_duration, len(fsk_signal))
+t_manchester = np.linspace(0, total_duration, len(manchester_signal))
+t_raw = np.linspace(0, total_duration, len(raw_bit_signal))
+
+# Plotting the results
+fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 10), sharex=True)
+
+# Plot the raw binary input data as a step function
+ax1.step(t_raw, raw_bit_signal, label='Raw Bit Input', where='post', color='r')
+ax1.set_title('Raw Binary Bit Input')
+ax1.set_ylim([-0.5, 1.5])
+ax1.grid(True)
+ax1.set_ylabel('Bit Value')
+
+# Plot the Manchester-encoded signal
+ax2.plot(t_manchester, manchester_signal, label='Manchester Encoding (SE=1, DE=1)', color='b')
+ax2.set_title('Manchester Line Encoding (SE=1 for "1", DE=1 for "0")')
+ax2.set_ylim([-2, 2])
+ax2.set_yticks([-1, 1])
+ax2.grid(True)
+ax2.set_ylabel('Amplitude')
+
+# Plot the FSK-modulated signal
+ax3.plot(t_fsk, fsk_signal, label='FSK Modulated Signal', color='g')
+ax3.set_title('FSK Modulated Signal Based on Manchester Encoding')
+ax3.set_ylim([-1.5, 1.5])
+ax3.grid(True)
+ax3.set_xlabel('Time (s)')
+ax3.set_ylabel('Amplitude')
+
+# Adjust layout
+plt.tight_layout()
+plt.show()
